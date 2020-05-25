@@ -69,6 +69,7 @@ func NativeInvoke(service *NeoVmService, engine *vm.Executor) error {
 		Args:    sink.Bytes(),
 	}
 
+	// todo 启动本地虚机服务
 	nat := &native.NativeService{
 		CacheDB:     service.CacheDB,
 		InvokeParam: contract,
@@ -80,6 +81,7 @@ func NativeInvoke(service *NeoVmService, engine *vm.Executor) error {
 		PreExec:     service.PreExec,
 	}
 
+	// 执行 native 合约
 	result, err := nat.Invoke()
 	if err != nil {
 		return err
