@@ -21,7 +21,7 @@ require (
 	github.com/ontio/go-bip32 v0.0.0-20190520025953-d3cea6894a2b // indirect
 	github.com/ontio/ontology-crypto v1.0.5
 	github.com/ontio/ontology-eventbus v0.9.1
-	github.com/ontio/ontology-go-sdk v1.0.9
+	github.com/ontio/ontology-go-sdk v1.0.9 // indirect
 	github.com/orcaman/concurrent-map v0.0.0-20190826125027-8c72a8bb44f6 // indirect
 	github.com/pborman/uuid v1.2.0
 	github.com/stretchr/testify v1.3.0

@@ -114,6 +114,10 @@ func (hd *Header) GetRawHeader() *RawHeader {
 	}
 }
 
+
+/**
+todo 本体 的 block header
+ */
 type Header struct {
 	Version          uint32
 	PrevBlockHash    common.Uint256

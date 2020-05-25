@@ -48,6 +48,8 @@ type Engine interface {
 }
 
 // Context describe smart contract execute context struct
+//
+// Context: 描述智能合约执行上下文结构
 type Context struct {
 	ContractAddress common.Address
 	Code            []byte

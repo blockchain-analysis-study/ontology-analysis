@@ -614,9 +614,15 @@ func (this *LedgerStoreImp) saveBlockToBlockStore(block *types.Block) error {
 	return nil
 }
 
+/**
+todo 执行一个 block
+ */
 func (this *LedgerStoreImp) executeBlock(block *types.Block) (result store.ExecuteResult, err error) {
+
+	// 一个新的 db
 	overlay := this.stateStore.NewOverlayDB()
 	if block.Header.Height != 0 {
+		// todo 组装 智能合约的 配置
 		config := &smartcontract.Config{
 			Time:   block.Header.Timestamp,
 			Height: block.Header.Height,
@@ -628,6 +634,8 @@ func (this *LedgerStoreImp) executeBlock(block *types.Block) (result store.Execu
 			return
 		}
 	}
+
+	// todo gas计价表  !?
 	gasTable := make(map[string]uint64)
 	neovm.GAS_TABLE.Range(func(k, value interface{}) bool {
 		key := k.(string)
@@ -638,8 +646,14 @@ func (this *LedgerStoreImp) executeBlock(block *types.Block) (result store.Execu
 	})
 
 	cache := storage.NewCacheDB(overlay)
+
+	/**
+	todo 执行  block 中的 txs
+	 */
 	for _, tx := range block.Transactions {
 		cache.Reset()
+
+		// todo 执行单笔 tx
 		notify, e := this.handleTransaction(overlay, cache, gasTable, block, tx)
 		if e != nil {
 			err = e
@@ -849,8 +863,15 @@ func (this *LedgerStoreImp) saveBlock(block *types.Block, stateMerkleRoot common
 
 func (this *LedgerStoreImp) handleTransaction(overlay *overlaydb.OverlayDB, cache *storage.CacheDB, gasTable map[string]uint64, block *types.Block, tx *types.Transaction) (*event.ExecuteNotify, error) {
 	txHash := tx.Hash()
+
+	// 先初始化了一个 创建失败的eventlog 指针的零值
 	notify := &event.ExecuteNotify{TxHash: txHash, State: event.CONTRACT_STATE_FAIL}
+
+	// todo 其实 本体也是使用了 txType 标识使用什么虚机的
 	switch tx.TxType {
+	/**
+	todo 部署合约
+	 */
 	case types.Deploy:
 		err := this.stateStore.HandleDeployTransaction(this, overlay, gasTable, cache, tx, block, notify)
 		if overlay.Error() != nil {
@@ -859,6 +880,7 @@ func (this *LedgerStoreImp) handleTransaction(overlay *overlaydb.OverlayDB, cach
 		if err != nil {
 			log.Debugf("HandleDeployTransaction tx %s error %s", txHash.ToHexString(), err)
 		}
+	// todo 这里选择使用 neo 还是 wasm
 	case types.InvokeNeo, types.InvokeWasm:
 		err := this.stateStore.HandleInvokeTransaction(this, overlay, gasTable, cache, tx, block, notify)
 		if overlay.Error() != nil {
@@ -870,6 +892,7 @@ func (this *LedgerStoreImp) handleTransaction(overlay *overlaydb.OverlayDB, cach
 
 	}
 
+	// 注意： notify 最终会被在各个 HandleXxxx 中被修改的
 	return notify, nil
 }
 

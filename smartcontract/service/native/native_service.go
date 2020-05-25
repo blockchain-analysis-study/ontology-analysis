@@ -31,11 +31,14 @@ import (
 )
 
 type (
+	// 内置合约的 各个func类型
 	Handler         func(native *NativeService) ([]byte, error)
+	// 注册内置合约的 func
 	RegisterService func(native *NativeService)
 )
 
 var (
+	// todo 这里头装的就是 本体所有系统合约的注册func而已
 	Contracts = make(map[common.Address]RegisterService)
 )
 
@@ -43,6 +46,8 @@ var (
 // Invoke a native smart contract, new a native service
 type NativeService struct {
 	CacheDB       *storage.CacheDB
+
+	// todo 这里头装的都是系统合约
 	ServiceMap    map[string]Handler
 	Notifications []*event.NotifyEventInfo
 	InvokeParam   sstates.ContractInvokeParam
@@ -59,13 +64,22 @@ func (this *NativeService) Register(methodName string, handler Handler) {
 	this.ServiceMap[methodName] = handler
 }
 
+
+/**
+todo 系统合约的执行入口。
+ */
 func (this *NativeService) Invoke() ([]byte, error) {
+
+	// todo 取出合约上下文
 	contract := this.InvokeParam
 	services, ok := Contracts[contract.Address]
 	if !ok {
 		return BYTE_FALSE, fmt.Errorf("Native contract address %x haven't been registered.", contract.Address)
 	}
 	services(this)
+	/**
+	todo 根据对应的系统合约方法名 取出 系统合约func
+	 */
 	service, ok := this.ServiceMap[contract.Method]
 	if !ok {
 		return BYTE_FALSE, fmt.Errorf("Native contract %x doesn't support this function %s.",
@@ -74,25 +88,36 @@ func (this *NativeService) Invoke() ([]byte, error) {
 	args := this.Input
 	this.Input = contract.Args
 	this.ContextRef.PushContext(&context.Context{ContractAddress: contract.Address})
+
+	// 处理系统合约 event 相关 todo <其实系统合约没有 event>
 	notifications := this.Notifications
 	this.Notifications = []*event.NotifyEventInfo{}
+
+	// todo 执行对应的系统合约
 	result, err := service(this)
 	if err != nil {
 		return result, errors.NewDetailErr(err, errors.ErrNoCode, "[Invoke] Native serivce function execute error!")
 	}
 	this.ContextRef.PopContext()
+
+	// 压入系统合约调用事件  todo <其实系统合约是没有event的，所以压了个空的>
 	this.ContextRef.PushNotifications(this.Notifications)
 	this.Notifications = notifications
 	this.Input = args
 	return result, nil
 }
 
+// todo 开始执行本地调用， 即： 调用系统合约
 func (this *NativeService) NativeCall(address common.Address, method string, args []byte) (interface{}, error) {
+
+	// todo 根据 系统合约的账户 addr 和本地需要调用的 method名称 和 参数args 初始化一个 合约上下文
 	c := states.ContractInvokeParam{
 		Address: address,
 		Method:  method,
 		Args:    args,
 	}
 	this.InvokeParam = c
+
+	// 调用它
 	return this.Invoke()
 }

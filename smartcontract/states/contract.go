@@ -30,6 +30,16 @@ import (
 // Param Address: invoke on blockchain smart contract by address
 // Param Method: invoke smart contract method, default ""
 // Param Args: invoke smart contract arguments
+/**
+
+todo Invoke(0, CROSS_CHAIN_CONTRACT_ADDRESS, "createCrossChainTx", param) 格式的入口
+
+TODO 调用智能合约结构
+	参数版本：调用智能合约版本，默认为 0
+	参数地址：按地址调用区块链智能合约
+	参数方法：调用智能合约方法，默认为 ""
+	参数Args：调用智能合约参数
+ */
 type ContractInvokeParam struct {
 	Version byte
 	Address common.Address

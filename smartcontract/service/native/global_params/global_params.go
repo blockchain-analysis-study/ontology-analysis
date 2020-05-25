@@ -27,6 +27,9 @@ import (
 	"github.com/ontio/ontology/smartcontract/service/native/utils"
 )
 
+/**
+todo 本地合约的 `全局参数管理器本`
+ */
 type paramType byte
 
 const (
@@ -46,6 +49,10 @@ func InitGlobalParams() {
 	native.Contracts[utils.ParamContractAddress] = RegisterParamContract
 }
 
+
+/**
+TODO 注册全局的系统合约
+ */
 func RegisterParamContract(native *native.NativeService) {
 	native.Register(INIT_NAME, ParamInit)
 	native.Register(ACCEPT_ADMIN_NAME, AcceptAdmin)

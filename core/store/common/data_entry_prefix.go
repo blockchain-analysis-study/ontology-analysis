@@ -30,8 +30,8 @@ const (
 
 	// Transaction
 	ST_BOOKKEEPER DataEntryPrefix = 0x03 //BookKeeper state key prefix
-	ST_CONTRACT   DataEntryPrefix = 0x04 //Smart contract state key prefix
-	ST_STORAGE    DataEntryPrefix = 0x05 //Smart contract storage key prefix
+	ST_CONTRACT   DataEntryPrefix = 0x04 //Smart contract state key prefix  todo 这个是存储合约 code 的前缀
+	ST_STORAGE    DataEntryPrefix = 0x05 //Smart contract storage key prefix  todo 这个是存储合约 里面的kv 的前缀
 	ST_VALIDATOR  DataEntryPrefix = 0x07 //no use
 	ST_VOTE       DataEntryPrefix = 0x08 //Vote state key prefix
 

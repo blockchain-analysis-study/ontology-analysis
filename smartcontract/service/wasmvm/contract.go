@@ -24,7 +24,7 @@ import (
 	"github.com/ontio/ontology/core/payload"
 	"github.com/ontio/ontology/errors"
 )
-
+// todo 合约创建
 func ContractCreate(proc *exec.Process,
 	codePtr uint32,
 	codeLen uint32,
@@ -100,29 +100,34 @@ func ContractCreate(proc *exec.Process,
 
 }
 
-func ContractMigrate(proc *exec.Process,
-	codePtr uint32,
-	codeLen uint32,
-	vmType uint32,
-	namePtr uint32,
-	nameLen uint32,
-	verPtr uint32,
-	verLen uint32,
-	authorPtr uint32,
-	authorLen uint32,
-	emailPtr uint32,
-	emailLen uint32,
-	descPtr uint32,
-	descLen uint32,
-	newAddressPtr uint32) uint32 {
+/**
+todo 合约迁移 <合约升级>
+ */
+func ContractMigrate(proc *exec.Process, // wagon的process结构，是传递给host functions 以访问诸如内存和控制之类的代理。
+	codePtr uint32, // 新contract code的在wasm内存中的偏移量
+	codeLen uint32, // 新contract code的在wasm内存中的长度
+	vmType uint32,  // 需要用到的vm类型
+	namePtr uint32, // 新合约的name在wasm内存中的偏移量
+	nameLen uint32, // 新合约的name在wasm内存中的长度
+	verPtr uint32,  // 新合约的版本在wasm内存中的偏移量
+	verLen uint32,  // 新合约的版本在wasm内存中的长度
+	authorPtr uint32, // 新合约的作者在wasm内存中的偏移量
+	authorLen uint32, // 新合约的作者在wasm内存中的长度
+	emailPtr uint32,  // 新合约的email在wasm内存中的偏移量
+	emailLen uint32,  // 新合约的email在wasm内存中的长度
+	descPtr uint32,   // 新合约的描述在wasm内存中的偏移量
+	descLen uint32,   // 新合约的描述在wasm内存中的长度
+	newAddressPtr uint32 /* 新合约的地址 */) uint32 {
 
 	self := proc.HostData().(*Runtime)
 
+	// todo 使用对应的ptr <内存偏移量>和len <内存长度>
 	code, err := ReadWasmMemory(proc, codePtr, codeLen)
 	if err != nil {
 		panic(err)
 	}
 
+	// 检查 新合约的 code 消耗的gas
 	cost := CONTRACT_CREATE_GAS + uint64(uint64(codeLen)/PER_UNIT_CODE_LEN)*UINT_DEPLOY_CODE_LEN_GAS
 	self.checkGas(cost)
 
@@ -151,45 +156,66 @@ func ContractMigrate(proc *exec.Process,
 		panic(err)
 	}
 
+	// todo 组装 deployCode
 	dep, err := payload.CreateDeployCode(code, vmType, name, version, author, email, desc)
 	if err != nil {
 		panic(err)
 	}
 
+	// todo 从deployCode中获取真正的 code
 	wasmCode, err := dep.GetWasmCode()
 	if err != nil {
 		panic(err)
 	}
+
+	/**
+	todo 有根据 新的code 加载了下 module
+
+	todo 这里为什么，不使用新code 实例化的新 module ?
+	 */
 	_, err = ReadWasmModule(wasmCode, true)
 	if err != nil {
 		panic(err)
 	}
 
+	// todo 拿到新合约地址
 	contractAddr := dep.Address()
 	if self.isContractExist(contractAddr) {
 		panic(errors.NewErr("contract has been deployed"))
 	}
+
+	// todo 从当前执行下下文中获取当前旧合约地址
 	oldAddress := self.Service.ContextRef.CurrentContext().ContractAddress
 
+	// todo 存储新合约
 	self.Service.CacheDB.PutContract(dep)
+	//todo 删除旧合约
 	self.Service.CacheDB.DeleteContract(oldAddress)
 
+
+	// todo 获取 旧合约的迭代器
 	iter := self.Service.CacheDB.NewIterator(oldAddress[:])
 	for has := iter.First(); has; has = iter.Next() {
 		key := iter.Key()
 		val := iter.Value()
 
+		// todo 逐个遍历 旧合约的  K-V， 并用旧 Key 和新合约addr组装成 新Key
 		newkey := serializeStorageKey(contractAddr, key[20:])
 
+		// todo 将旧的 value转移到新的Key上
 		self.Service.CacheDB.Put(newkey, val)
+		// todo 删除旧的 Key
 		self.Service.CacheDB.Delete(key)
 	}
 
+	// 释放迭代器
 	iter.Release()
 	if err := iter.Error(); err != nil {
 		panic(err)
 	}
 
+
+	// 将新合约的 地址写回到 memory中
 	length, err := proc.WriteAt(contractAddr[:], int64(newAddressPtr))
 	if err != nil {
 		panic(err)
@@ -198,11 +224,15 @@ func ContractMigrate(proc *exec.Process,
 	return uint32(length)
 }
 
+
+// todo 合约销毁
 func ContractDestroy(proc *exec.Process) {
 	self := proc.HostData().(*Runtime)
+
+	// todo 从当前合约上下文中获取当前合约的 addr
 	contractAddress := self.Service.ContextRef.CurrentContext().ContractAddress
 	iter := self.Service.CacheDB.NewIterator(contractAddress[:])
-
+	// todo 遍历当前合约的 迭代器，逐个清除掉 K-V
 	for has := iter.First(); has; has = iter.Next() {
 		self.Service.CacheDB.Delete(iter.Key())
 	}
@@ -210,8 +240,11 @@ func ContractDestroy(proc *exec.Process) {
 	if err := iter.Error(); err != nil {
 		panic(err)
 	}
+
+	// todo 删除掉合约
 	self.Service.CacheDB.DeleteContract(contractAddress)
 	//the contract has been deleted ,quit the contract operation
+	// todo 终止当前合约对应的 module的执行
 	proc.Terminate()
 }
 

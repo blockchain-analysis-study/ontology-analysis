@@ -27,11 +27,19 @@ import (
 	"github.com/go-interpreter/wagon/wasm"
 )
 
+/**
+todo 根据 ptr <内存偏移量>和 len <内存长度>从wagon的memory中获取对应的内容
+ */
 func ReadWasmMemory(proc *exec.Process, ptr uint32, len uint32) ([]byte, error) {
+
+	// todo ptr的起始地址位置 <某个长度索引位> +总共占用的长度
+	//		如果超过了 memory 的总占用长度则太大了
 	if uint64(proc.MemSize()) < uint64(ptr)+uint64(len) {
 		return nil, errors.New("contract create len is greater than memory size")
 	}
+	// 根据占用长度，起一个等长的 bytes
 	keybytes := make([]byte, len)
+	// 根据ptr索引去填充 bytes 的内容
 	_, err := proc.ReadAt(keybytes, int64(ptr))
 	if err != nil {
 		return nil, err
@@ -80,13 +88,27 @@ func checkOntoWasm(m *wasm.Module) error {
 }
 
 func ReadWasmModule(Code []byte, verify bool) (*exec.CompiledModule, error) {
+
+	// todo 先获取 一个 module
+	// todo
+	// todo #############################
+	// todo #############################
+	// todo #############################
+	//
+	// TODO 这个就是调用了 wagon 的 wasm.ReadModule()
+	//
+	// 这里就是和 PlatON 不一样的地方， 本体是根据 一个回调匿名函数
 	m, err := wasm.ReadModule(bytes.NewReader(Code), func(name string) (*wasm.Module, error) {
+
+		// todo 为啥 `env` 字符啊
 		switch name {
 		case "env":
 			return NewHostModule(), nil
 		}
 		return nil, fmt.Errorf("module %q unknown", name)
 	})
+
+
 	if err != nil {
 		return nil, err
 	}

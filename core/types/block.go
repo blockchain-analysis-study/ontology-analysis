@@ -25,6 +25,9 @@ import (
 	"github.com/ontio/ontology/common"
 )
 
+/**
+todo 本体的 block
+ */
 type Block struct {
 	Header       *Header
 	Transactions []*Transaction

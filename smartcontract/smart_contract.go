@@ -41,10 +41,12 @@ const (
 
 // SmartContract describe smart contract execute engine
 type SmartContract struct {
-	Contexts      []*context.Context // all execute smart contract context
+	Contexts      []*context.Context // all execute smart contract context  todo 所有执行合约的 context， 多个存在
 	CacheDB       *storage.CacheDB   // state cache
 	Store         store.LedgerStore  // ledger store
 	Config        *Config
+
+	// todo 所有执行智能合约事件通知信息
 	Notifications []*event.NotifyEventInfo // all execute smart contract event notify info
 	GasTable      map[string]uint64
 	Gas           uint64
@@ -98,6 +100,8 @@ func (this *SmartContract) PopContext() {
 }
 
 // PushNotifications push smart contract event info
+//
+// todo PushNotifications  压入智能合约事件信息
 func (this *SmartContract) PushNotifications(notifications []*event.NotifyEventInfo) {
 	this.Notifications = append(this.Notifications, notifications...)
 }
@@ -136,21 +140,30 @@ func NewVmFeatureFlag(blockHeight uint32) vm.VmFeatureFlag {
 
 // Execute is smart contract execute manager
 // According different vm type to launch different service
+//
+/**
+todo Execute 是智能合约执行管理器
+	根据不同的vm类型启动不同的服务
+ */
 func (this *SmartContract) NewExecuteEngine(code []byte, txtype ctypes.TransactionType) (context.Engine, error) {
 	if !this.checkContexts() {
 		return nil, fmt.Errorf("%s", "engine over max limit!")
 	}
 
 	var service context.Engine
+
+	// 根据 tx的类型，判断 合约的执行引擎
 	switch txtype {
 	case ctypes.InvokeNeo:
 		feature := NewVmFeatureFlag(this.Config.Height)
 		service = &neovm.NeoVmService{
+
+			// todo 注意了，这时候还没设置 context
 			Store:      this.Store,
 			CacheDB:    this.CacheDB,
 			ContextRef: this,
 			GasTable:   this.GasTable,
-			Code:       code,
+			Code:       code, // tx.Data
 			Tx:         this.Config.Tx,
 			Time:       this.Config.Time,
 			Height:     this.Config.Height,

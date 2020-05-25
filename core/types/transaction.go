@@ -33,12 +33,15 @@ import (
 
 const MAX_TX_SIZE = 1024 * 1024 // The max size of a transaction to prevent DOS attacks
 
+/**
+todo 本体的 tx 类型
+ */
 type Transaction struct {
 	Version  byte
 	TxType   TransactionType
 	Nonce    uint32
-	GasPrice uint64
-	GasLimit uint64
+	GasPrice uint64 // gasPrice
+	GasLimit uint64 // 对应 gasUse
 	Payer    common.Address
 	Payload  Payload
 	//Attributes []*TxAttribute

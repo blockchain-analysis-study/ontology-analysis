@@ -72,7 +72,11 @@ var (
 		RUNTIME_SERIALIZE_NAME:               {Execute: RuntimeSerialize},
 		RUNTIME_DESERIALIZE_NAME:             {Execute: RuntimeDeserialize},
 		RUNTIME_VERIFYMUTISIG_NAME:           {Execute: RuntimeVerifyMutiSig},
+
+		// 在 NEO中调用 系统合约
 		NATIVE_INVOKE_NAME:                   {Execute: NativeInvoke},
+
+		// 在 NEO中调用 系统合约
 		WASM_INVOKE_NAME:                     {Execute: WASMInvoke},
 		STORAGE_GET_NAME:                     {Execute: StorageGet},
 		STORAGE_PUT_NAME:                     {Execute: StoragePut},
@@ -126,10 +130,21 @@ type NeoVmService struct {
 }
 
 // Invoke a smart contract
+//
+// todo NEO合约执行合约入口。
+// todo
+// todo NEO调系统合约
+// 		NEO调NEO合约
+//
+// todo 没有 NEO调WASM哦
 func (this *NeoVmService) Invoke() (interface{}, error) {
 	if len(this.Code) == 0 {
 		return nil, ERR_EXECUTE_CODE
 	}
+
+	// todo 每一次调用之都先由 tx.Data 解出本次调用的 contract Address
+	// todo 并且根据解出来的 contract Address 和 tx.Data 组装成 Context，并且将 Context追加到 Service.Contexts
+	// todo 然后才开始执行本次调用.
 	this.ContextRef.PushContext(&context.Context{ContractAddress: scommon.AddressFromVmCode(this.Code), Code: this.Code})
 	var gasTable [256]uint64
 	for {
@@ -166,11 +181,17 @@ func (this *NeoVmService) Invoke() (interface{}, error) {
 			return nil, ERR_GAS_INSUFFICIENT
 		}
 
+
+		// todo 判断指令码
 		switch opCode {
+
+		// todo 如果是系统调用的话
 		case vm.SYSCALL:
 			if err := this.SystemCall(this.Engine); err != nil {
 				return nil, errors.NewDetailErr(err, errors.ErrNoCode, "[NeoVmService] service system call error!")
 			}
+
+		// todo 如果是	NEO合约跨合约
 		case vm.APPCALL:
 			address, err := this.Engine.Context.OpReader.ReadBytes(20)
 			if err != nil {
@@ -196,6 +217,8 @@ func (this *NeoVmService) Invoke() (interface{}, error) {
 			if err != nil {
 				return nil, err
 			}
+
+			// todo 初始化 NEO Service
 			service, err := this.ContextRef.NewExecuteEngine(code, types.InvokeNeo)
 			if err != nil {
 				return nil, err
@@ -204,6 +227,8 @@ func (this *NeoVmService) Invoke() (interface{}, error) {
 			if err != nil {
 				return nil, fmt.Errorf("[Appcall] EvalStack CopyTo error:%x", err)
 			}
+
+			// todo 执行 NEO 跨合约调用
 			result, err := service.Invoke()
 			if err != nil {
 				return nil, err
@@ -216,6 +241,8 @@ func (this *NeoVmService) Invoke() (interface{}, error) {
 				}
 			}
 		default:
+
+			// todo 执行当前合约的正常调用指令
 			state, err := this.Engine.ExecuteOp(opCode, this.Engine.Context)
 			if err != nil {
 				return nil, errors.NewDetailErr(err, errors.ErrNoCode, "[NeoVmService] vm execution error!")
@@ -239,10 +266,14 @@ func (this *NeoVmService) Invoke() (interface{}, error) {
 
 // SystemCall provide register service for smart contract to interaction with blockchain
 func (this *NeoVmService) SystemCall(engine *vm.Executor) error {
+
+	// todo 根据执行引擎中的 指令reader 拿到对用的 系统合约服务 名称
 	serviceName, err := engine.Context.OpReader.ReadVarString(vm.MAX_BYTEARRAY_SIZE)
 	if err != nil {
 		return err
 	}
+
+	// todo 这个是全局的 系统合约 服务 map
 	service, ok := ServiceMap[serviceName]
 	if !ok {
 		return errors.NewErr(fmt.Sprintf("[SystemCall] the given service is not supported: %s", serviceName))
@@ -254,6 +285,8 @@ func (this *NeoVmService) SystemCall(engine *vm.Executor) error {
 	if !this.ContextRef.CheckUseGas(price) {
 		return ERR_GAS_INSUFFICIENT
 	}
+
+	// todo 执行系统调用
 	if err := service.Execute(this, engine); err != nil {
 		return errors.NewDetailErr(err, errors.ErrNoCode, "[SystemCall] service execution error!")
 	}

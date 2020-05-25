@@ -34,11 +34,13 @@ const (
 	TRANSFER_FLAG byte = 1
 	APPROVE_FLAG  byte = 2
 )
-
+// 初始化 ont 系统合约
 func InitOnt() {
 	native.Contracts[utils.OntContractAddress] = RegisterOntContract
 }
 
+
+//
 func RegisterOntContract(native *native.NativeService) {
 	native.Register(INIT_NAME, OntInit)
 	native.Register(TRANSFER_NAME, OntTransfer)

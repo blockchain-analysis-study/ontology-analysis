@@ -34,6 +34,9 @@ func InitOng() {
 	native.Contracts[utils.OngContractAddress] = RegisterOngContract
 }
 
+// todo 注册 ong <onotology gas> 相关系统合约的各个系统函数
+//
+// 下面这些方法就形成一个完整的 系统合约了 参照了ERC20 
 func RegisterOngContract(native *native.NativeService) {
 	native.Register(ont.INIT_NAME, OngInit)
 	native.Register(ont.TRANSFER_NAME, OngTransfer)
@@ -47,6 +50,7 @@ func RegisterOngContract(native *native.NativeService) {
 	native.Register(ont.ALLOWANCE_NAME, OngAllowance)
 }
 
+// 这是 ong系统合约的 init 方法
 func OngInit(native *native.NativeService) ([]byte, error) {
 	contract := native.ContextRef.CurrentContext().ContractAddress
 	amount, err := utils.GetStorageUInt64(native, ont.GenTotalSupplyKey(contract))
@@ -65,6 +69,7 @@ func OngInit(native *native.NativeService) ([]byte, error) {
 	return utils.BYTE_TRUE, nil
 }
 
+// ong 系统合约的 transfer 方法
 func OngTransfer(native *native.NativeService) ([]byte, error) {
 	var transfers ont.Transfers
 	source := common.NewZeroCopySource(native.Input)
@@ -87,6 +92,8 @@ func OngTransfer(native *native.NativeService) ([]byte, error) {
 	return utils.BYTE_TRUE, nil
 }
 
+
+// ong 系统合约的 Approve 方法
 func OngApprove(native *native.NativeService) ([]byte, error) {
 	var state ont.State
 	source := common.NewZeroCopySource(native.Input)
@@ -104,6 +111,8 @@ func OngApprove(native *native.NativeService) ([]byte, error) {
 	return utils.BYTE_TRUE, nil
 }
 
+
+// ong 系统合约的 TransferFrom 方法
 func OngTransferFrom(native *native.NativeService) ([]byte, error) {
 	var state ont.TransferFrom
 	source := common.NewZeroCopySource(native.Input)
@@ -124,10 +133,14 @@ func OngTransferFrom(native *native.NativeService) ([]byte, error) {
 	return utils.BYTE_TRUE, nil
 }
 
+
+// ong 系统合约的Name 方法
 func OngName(native *native.NativeService) ([]byte, error) {
 	return []byte(constants.ONG_NAME), nil
 }
 
+
+// ong 系统合约的 Decimals 方法
 func OngDecimals(native *native.NativeService) ([]byte, error) {
 	return big.NewInt(int64(constants.ONG_DECIMALS)).Bytes(), nil
 }

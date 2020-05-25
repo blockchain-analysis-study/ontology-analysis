@@ -43,9 +43,12 @@ func VmTypeFromByte(ty byte) (VmType, error) {
 }
 
 // DeployCode is an implementation of transaction payload for deploy smartcontract
+//
+// DeployCode: 是用于部署智能合约的交易有效 data 的实现
 type DeployCode struct {
 	code []byte
 	//0, 1 means NEOVM_TYPE, 3 means WASMVM_TYPE
+	// 标识该合约code 支持的合约类型为 0: 默认支持 <NEO>, 1: 支持NEO, 3：WASM
 	vmFlags     byte
 	Name        string
 	Version     string
@@ -116,6 +119,7 @@ func (dc *DeployCode) VmType() VmType {
 	case 3:
 		return WASMVM_TYPE
 	default:
+		// 2,或者 其他的
 		panic("unreachable")
 	}
 }
@@ -139,32 +143,43 @@ func (dc *DeployCode) Serialization(sink *common.ZeroCopySink) {
 //note: DeployCode.Code has data reference of param source
 func (dc *DeployCode) Deserialization(source *common.ZeroCopySource) error {
 	var eof, irregular bool
+
+	// todo 这个是真正的 合约code
 	dc.code, _, irregular, eof = source.NextVarBytes()
 	if irregular {
 		return common.ErrIrregularData
 	}
 
+
+	// todo 根据 code 中的前一小段，解出合约的虚机适配类型
 	dc.vmFlags, eof = source.NextByte()
+
+	// todo 合约的名称
 	dc.Name, _, irregular, eof = source.NextString()
 	if irregular {
 		return common.ErrIrregularData
 	}
 
+
+	// todo 合约的版本
 	dc.Version, _, irregular, eof = source.NextString()
 	if irregular {
 		return common.ErrIrregularData
 	}
 
+	// todo 合约的作者
 	dc.Author, _, irregular, eof = source.NextString()
 	if irregular {
 		return common.ErrIrregularData
 	}
 
+	// todo 作者的email
 	dc.Email, _, irregular, eof = source.NextString()
 	if irregular {
 		return common.ErrIrregularData
 	}
 
+	// todo 合约的描述信息
 	dc.Description, _, irregular, eof = source.NextString()
 	if irregular {
 		return common.ErrIrregularData
@@ -174,6 +189,13 @@ func (dc *DeployCode) Deserialization(source *common.ZeroCopySource) error {
 		return io.ErrUnexpectedEOF
 	}
 
+	/**
+	todo ##########################
+	todo ##########################
+	todo ##########################
+	todo
+	todo 校验DeployCode
+	 */
 	err := validateDeployCode(dc)
 	if err != nil {
 		return err

@@ -7,7 +7,7 @@
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * The ontology is distributed in the hope that it will be useful,
+ * The ontology is distributed in the hope that it will be useful,0x0000000000000000000000000000000000000003
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
@@ -190,6 +190,7 @@ func InputLength(proc *exec.Process) uint32 {
 	return uint32(len(self.Input))
 }
 
+// todo 获取 合约函数调用入参
 func GetInput(proc *exec.Process, dst uint32) {
 	self := proc.HostData().(*Runtime)
 	_, err := proc.WriteAt(self.Input, int64(dst))
@@ -235,6 +236,9 @@ func RaiseException(proc *exec.Process, ptr uint32, len uint32) {
 	panic(fmt.Errorf("[RaiseException]Contract RaiseException:%s\n", bs))
 }
 
+/**
+TODO  WASM 合约调用合约
+ */
 func CallContract(proc *exec.Process, contractAddr uint32, inputPtr uint32, inputLen uint32) uint32 {
 	self := proc.HostData().(*Runtime)
 
@@ -250,6 +254,7 @@ func CallContract(proc *exec.Process, contractAddr uint32, inputPtr uint32, inpu
 		panic(err)
 	}
 
+	// todo 根据被调用的合约，检出合约的类型
 	contracttype, err := self.getContractType(contractAddress)
 	if err != nil {
 		panic(err)
@@ -257,9 +262,18 @@ func CallContract(proc *exec.Process, contractAddr uint32, inputPtr uint32, inpu
 
 	var result []byte
 
+
+	/**
+	todo 根据被调用合约的类型处理各种合约调用
+	 */
 	switch contracttype {
+
+	// 系统合约调用
 	case NATIVE_CONTRACT:
+		// todo 根据 tx.Data 解出
 		source := common.NewZeroCopySource(inputs)
+
+		// todo 从 input 中取出 本次需要调用合约的入参版本
 		ver, eof := source.NextByte()
 		if eof {
 			panic(io.ErrUnexpectedEOF)
@@ -280,6 +294,7 @@ func CallContract(proc *exec.Process, contractAddr uint32, inputPtr uint32, inpu
 			panic(io.ErrUnexpectedEOF)
 		}
 
+		// todo 构建合约上下文
 		contract := states.ContractInvokeParam{
 			Version: ver,
 			Address: contractAddress,
@@ -299,6 +314,9 @@ func CallContract(proc *exec.Process, contractAddr uint32, inputPtr uint32, inpu
 			PreExec:     self.Service.PreExec,
 		}
 
+		/**
+		todo 调用 系统合约
+		 */
 		tmpRes, err := native.Invoke()
 		if err != nil {
 			panic(errors.NewErr("[nativeInvoke]AppCall failed:" + err.Error()))
@@ -306,15 +324,20 @@ func CallContract(proc *exec.Process, contractAddr uint32, inputPtr uint32, inpu
 
 		result = tmpRes
 
+	// WASM 合约调用
 	case WASMVM_CONTRACT:
 		conParam := states.WasmContractParam{Address: contractAddress, Args: inputs}
 		param := common.SerializeToBytes(&conParam)
 
+		/**
+		todo 新实例化一个  WASM 合约执行引擎
+		 */
 		newservice, err := self.Service.ContextRef.NewExecuteEngine(param, types.InvokeWasm)
 		if err != nil {
 			panic(err)
 		}
 
+		// todo 调用 WASM合约
 		tmpRes, err := newservice.Invoke()
 		if err != nil {
 			panic(err)
@@ -322,12 +345,14 @@ func CallContract(proc *exec.Process, contractAddr uint32, inputPtr uint32, inpu
 
 		result = tmpRes.([]byte)
 
+	// NEO 合约调用
 	case NEOVM_CONTRACT:
 		evalstack, err := util.GenerateNeoVMParamEvalStack(inputs)
 		if err != nil {
 			panic(err)
 		}
 
+		// todo 如果是 WASM -> NEO 跨虚机调用， 则需要 新起一个 NEO 的引擎
 		neoservice, err := self.Service.ContextRef.NewExecuteEngine([]byte{}, types.InvokeNeo)
 		if err != nil {
 			panic(err)
@@ -338,6 +363,7 @@ func CallContract(proc *exec.Process, contractAddr uint32, inputPtr uint32, inpu
 			panic(err)
 		}
 
+		// todo 调用 NEO合约
 		tmp, err := neoservice.Invoke()
 		if err != nil {
 			panic(err)
@@ -362,6 +388,9 @@ func CallContract(proc *exec.Process, contractAddr uint32, inputPtr uint32, inpu
 	return uint32(len(self.CallOutPut))
 }
 
+/**
+创建一个 module
+ */
 func NewHostModule() *wasm.Module {
 	m := wasm.NewModule()
 	paramTypes := make([]wasm.ValueType, 14)
@@ -369,6 +398,8 @@ func NewHostModule() *wasm.Module {
 		paramTypes[i] = wasm.ValueTypeI32
 	}
 
+
+	// todo 构建各种类型 的 section
 	m.Types = &wasm.SectionTypes{
 		Entries: []wasm.FunctionSig{
 			//func()uint64    [0]
@@ -437,54 +468,76 @@ func NewHostModule() *wasm.Module {
 			},
 		},
 	}
+
+	// 获得当前的时间戳，即返回调用该函数的 Unix 时间，单位为秒
+	// todo ####################################
+	// todo ####################################
+	// todo ####################################
+	//
+	// todo 构建 各种 function的 section
 	m.FunctionIndexSpace = []wasm.Function{
 		{ //0
 			Sig:  &m.Types.Entries[0],
-			Host: reflect.ValueOf(TimeStamp),
+			Host: reflect.ValueOf(TimeStamp), // todo 获取 timeStamp() 的外部函数； 获得当前的时间戳，即返回调用该函数的 Unix 时间，单位为秒
 			Body: &wasm.FunctionBody{}, // create a dummy wasm body (the actual value will be taken from Host.)
 		},
 		{ //1
 			Sig:  &m.Types.Entries[1],
-			Host: reflect.ValueOf(BlockHeight),
+			Host: reflect.ValueOf(BlockHeight), // todo 获取 BlockNum() 的外部函数； 获得当前区块链网络的区块高度
 			Body: &wasm.FunctionBody{}, // create a dummy wasm body (the actual value will be taken from Host.)
 		},
 		{ //2
 			Sig:  &m.Types.Entries[1],
-			Host: reflect.ValueOf(InputLength),
+			Host: reflect.ValueOf(InputLength), // todo 获取 tx.Data的长度 的外部函数
 			Body: &wasm.FunctionBody{}, // create a dummy wasm body (the actual value will be taken from Host.)
 		},
 		{ //3
 			Sig:  &m.Types.Entries[1],
-			Host: reflect.ValueOf(CallOutputLength),
+			Host: reflect.ValueOf(CallOutputLength), // todo 获取 tx返回值长度 的外部函数
 			Body: &wasm.FunctionBody{}, // create a dummy wasm body (the actual value will be taken from Host.)
 		},
 		{ //4
 			Sig:  &m.Types.Entries[2],
-			Host: reflect.ValueOf(SelfAddress),
+			Host: reflect.ValueOf(SelfAddress), // todo  获得当前合约的地址
 			Body: &wasm.FunctionBody{}, // create a dummy wasm body (the actual value will be taken from Host.)
 		},
 		{ //5
 			Sig:  &m.Types.Entries[2],
-			Host: reflect.ValueOf(CallerAddress),
+			Host: reflect.ValueOf(CallerAddress), // todo 获得调用方的合约地址，主要用于跨合约调用的场景，比如合约 A 调用合约 B 的应用场景, 在合约 B 中就可以调用该方法获得调用方合约 A 的地址
 			Body: &wasm.FunctionBody{}, // create a dummy wasm body (the actual value will be taken from Host.)
 		},
 		{ //6
 			Sig:  &m.Types.Entries[2],
-			Host: reflect.ValueOf(EntryAddress),
+			Host: reflect.ValueOf(EntryAddress), // todo 获得入口合约地址，比如有这样的应用场景，合约 A 通过合约 B 调用合约 C的方法，此时，在合约 C 中就可以通过该方法拿到合约 A 的地址
 			Body: &wasm.FunctionBody{}, // create a dummy wasm body (the actual value will be taken from Host.)
 		},
 		{ //7
 			Sig:  &m.Types.Entries[2],
-			Host: reflect.ValueOf(GetInput),
+			Host: reflect.ValueOf(GetInput), // todo 获取 调用 input <跨合约时用到>
 			Body: &wasm.FunctionBody{}, // create a dummy wasm body (the actual value will be taken from Host.)
 		},
 		{ //8
 			Sig:  &m.Types.Entries[2],
-			Host: reflect.ValueOf(GetCallOut),
+			Host: reflect.ValueOf(GetCallOut), // todo 获取调用 output <跨合约时用到>
 			Body: &wasm.FunctionBody{}, // create a dummy wasm body (the actual value will be taken from Host.)
 		},
 		{ //9
 			Sig:  &m.Types.Entries[3],
+
+			/**
+			todo 校验是否含有该地址的签名
+			CheckWitness(fromAcct) 有两个功能：
+
+			验证当前的函数调用者是不是 fromAcct ,若是（验证签名），则验证通过。
+
+			检查当前函数调用者是不是一个合约 A，若是合约 A，且是从合约 A 发起的去执行函数，则验证通过(验证 fromAcct 是不是GetCallingScriptHash() 的返回值)。
+			 */
+			/**
+			https://dev-docs.ont.io/#/docs-cn/smartcontract/05-sc-faq
+			6. 怎样能像 Ethereum 合约那样在合约内部拿到 msg.sender 及 msg.value 这种值？
+			调用帐户在主动调用合约函数时，需要把自已的帐户地址及转账资产的大小以参数的形式传入合约。
+			在合约内部使用 CheckWitness 对调用帐户进行验签，及进行资产额度的合法性判断。
+			 */
 			Host: reflect.ValueOf(Checkwitness),
 			Body: &wasm.FunctionBody{}, // create a dummy wasm body (the actual value will be taken from Host.)
 		},
@@ -505,17 +558,23 @@ func NewHostModule() *wasm.Module {
 		},
 		{ //13
 			Sig:  &m.Types.Entries[4],
-			Host: reflect.ValueOf(Notify),
+			Host: reflect.ValueOf(Notify), // todo 将合约中事件推送到全网，并将其内容保存到链上
 			Body: &wasm.FunctionBody{}, // create a dummy wasm body (the actual value will be taken from Host.)
 		},
 		{ //14
 			Sig:  &m.Types.Entries[4],
-			Host: reflect.ValueOf(Debug),
+			Host: reflect.ValueOf(Debug), // todo 打印信息来调试被调用的合约函数，观察合约函数执行到哪一步出了问题
 			Body: &wasm.FunctionBody{}, // create a dummy wasm body (the actual value will be taken from Host.)
 		},
 		{ //15
 			Sig:  &m.Types.Entries[5],
-			Host: reflect.ValueOf(CallContract),
+
+			// todo ##############################
+			// todo ##############################
+			// todo ##############################
+			// todo
+			// todo 这个也是合约调合约的指令
+			Host: reflect.ValueOf(CallContract), // todo  WASM 合约调用合约
 			Body: &wasm.FunctionBody{}, // create a dummy wasm body (the actual value will be taken from Host.)
 		},
 		{ //16
@@ -533,13 +592,18 @@ func NewHostModule() *wasm.Module {
 			Host: reflect.ValueOf(StorageDelete),
 			Body: &wasm.FunctionBody{}, // create a dummy wasm body (the actual value will be taken from Host.)
 		},
-		{ //19
+		{ //19 todo 合约创建
 			Sig:  &m.Types.Entries[9],
 			Host: reflect.ValueOf(ContractCreate),
 			Body: &wasm.FunctionBody{}, // create a dummy wasm body (the actual value will be taken from Host.)
 		},
 		{ //20
 			Sig:  &m.Types.Entries[9],
+
+			// todo 合约迁移的功能的
+			//
+			// 其结果表现为旧合约失效，新合约生效，但旧合约的数据会全部被迁移到新合约中。
+			// 注意调用该函数的手续费会受到新合约规模大小以及旧合约里的状态数据量有关。
 			Host: reflect.ValueOf(ContractMigrate),
 			Body: &wasm.FunctionBody{}, // create a dummy wasm body (the actual value will be taken from Host.)
 		},
@@ -560,6 +624,9 @@ func NewHostModule() *wasm.Module {
 		},
 	}
 
+	// todo 构造 module的 导出
+	//
+	// 这些和 m.FunctionIndexSpace 中的索引一一对应
 	m.Export = &wasm.SectionExports{
 		Entries: map[string]wasm.ExportEntry{
 			"ontio_timestamp": {
@@ -689,6 +756,8 @@ func NewHostModule() *wasm.Module {
 }
 
 func (self *Runtime) getContractType(addr common.Address) (ContractType, error) {
+
+	// todo 本地合约类型
 	if utils.IsNativeContract(addr) {
 		return NATIVE_CONTRACT, nil
 	}
@@ -700,10 +769,13 @@ func (self *Runtime) getContractType(addr common.Address) (ContractType, error) 
 	if dep == nil {
 		return UNKOWN_CONTRACT, errors.NewErr("contract is not exist.")
 	}
+
+	// todo WASM 合约类型
 	if dep.VmType() == payload.WASMVM_TYPE {
 		return WASMVM_CONTRACT, nil
 	}
 
+	// todo 默认返回 NEO 合约类型
 	return NEOVM_CONTRACT, nil
 
 }

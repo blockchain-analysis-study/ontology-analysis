@@ -69,6 +69,8 @@ func (self *StateStore) HandleDeployTransaction(store store.LedgerStore, overlay
 			Tx:        tx,
 			BlockHash: block.Hash(),
 		}
+
+		// todo 合约创建需要消耗的 gas
 		createGasPrice, ok := gasTable[neovm.CONTRACT_CREATE_NAME]
 		if !ok {
 			overlay.SetError(errors.NewErr("[HandleDeployTransaction] get CONTRACT_CREATE_NAME gas failed"))
@@ -116,6 +118,7 @@ func (self *StateStore) HandleDeployTransaction(store store.LedgerStore, overlay
 	}
 	cache.Commit()
 
+	// todo 记录 部署事件
 	notify.Notify = append(notify.Notify, notifies...)
 	notify.GasConsumed = gasConsumed
 	notify.State = event.CONTRACT_STATE_SUCCESS
@@ -125,17 +128,37 @@ func (self *StateStore) HandleDeployTransaction(store store.LedgerStore, overlay
 //HandleInvokeTransaction deal with smart contract invoke transaction
 func (self *StateStore) HandleInvokeTransaction(store store.LedgerStore, overlay *overlaydb.OverlayDB, gasTable map[string]uint64, cache *storage.CacheDB,
 	tx *types.Transaction, block *types.Block, notify *event.ExecuteNotify) error {
+
+	// overlay： db的原型
+	// cache: overlay的封装
+    // this: LedgerStoreImp is main store struct fo ledger
+    // this: 就是 LedgerStoreImp
+
+	/**
+	todo invoke 就是 tx.data
+	 */
 	invoke := tx.Payload.(*payload.InvokeCode)
 	code := invoke.Code
+
+	// todo 是否为 调用系统合约 !?
 	sysTransFlag := bytes.Compare(code, ninit.COMMIT_DPOS_BYTES) == 0 || block.Header.Height == 0
 
+	// todo 是否收费标识
+	//
+	// 当不是系统合约调用，且tx.GasPrice > 0时，肯定是普通的合约调用
 	isCharge := !sysTransFlag && tx.GasPrice != 0
 
 	// init smart contract configuration info
+	//
+	// todo 初始化智能合约配置信息
 	config := &smartcontract.Config{
+		// 当前block 的时间戳
 		Time:      block.Header.Timestamp,
+		// 当前block 的高度
 		Height:    block.Header.Height,
 		Tx:        tx,
+
+		// 当前 blockHash !?
 		BlockHash: block.Hash(),
 	}
 
@@ -152,28 +175,37 @@ func (self *StateStore) HandleInvokeTransaction(store store.LedgerStore, overlay
 
 	availableGasLimit = tx.GasLimit
 	if isCharge {
+
+		// 获取出每个 code byte 的 gas单价
 		uintCodeGasPrice, ok := gasTable[neovm.UINT_INVOKE_CODE_LEN_NAME]
 		if !ok {
 			overlay.SetError(errors.NewErr("[HandleInvokeTransaction] get UINT_INVOKE_CODE_LEN_NAME gas failed"))
 			return nil
 		}
 
+		// todo 先查回 tx 发起者的 余额
 		oldBalance, err = getBalanceFromNative(config, cache, store, tx.Payer)
 		if err != nil {
 			return err
 		}
 
+		// 单笔交易最小gas对应的 ont
 		minGas = neovm.MIN_TRANSACTION_GAS * tx.GasPrice
 
+		// 如果余额连本次交易的最小gas 都不足以支付
+
 		if oldBalance < minGas {
+			// 根据 tx的发送者， 原有的余额， 合约配置， db， LedgerStoreImp 和 之前外头初始化好的 eventLog。 记录下本次失败的gas
 			if err := costInvalidGas(tx.Payer, oldBalance, config, overlay, store, notify); err != nil {
 				return err
 			}
 			return fmt.Errorf("balance gas: %d less than min gas: %d", oldBalance, minGas)
 		}
 
+		// todo 计算 tx.Data 的gas占用消耗
 		codeLenGasLimit = calcGasByCodeLen(len(invoke.Code), uintCodeGasPrice)
 
+		// 如果余额不足支付
 		if oldBalance < codeLenGasLimit*tx.GasPrice {
 			if err := costInvalidGas(tx.Payer, oldBalance, config, overlay, store, notify); err != nil {
 				return err
@@ -181,6 +213,7 @@ func (self *StateStore) HandleInvokeTransaction(store store.LedgerStore, overlay
 			return fmt.Errorf("balance gas insufficient: balance:%d < code length need gas:%d", oldBalance, codeLenGasLimit*tx.GasPrice)
 		}
 
+		// 如果本次所给的gas不够
 		if tx.GasLimit < codeLenGasLimit {
 			if err := costInvalidGas(tx.Payer, tx.GasLimit*tx.GasPrice, config, overlay, store, notify); err != nil {
 				return err
@@ -188,33 +221,51 @@ func (self *StateStore) HandleInvokeTransaction(store store.LedgerStore, overlay
 			return fmt.Errorf("invoke transaction gasLimit insufficient: need%d actual:%d", tx.GasLimit, codeLenGasLimit)
 		}
 
+		// todo 自己的余额所能支付的最大gas
 		maxAvaGasLimit := oldBalance / tx.GasPrice
+
+		// `availableGasLimit = tx.GasLimit`; 本次交易所给的gas超过自身余额所能支付的gas
 		if availableGasLimit > maxAvaGasLimit {
-			availableGasLimit = maxAvaGasLimit
+			availableGasLimit = maxAvaGasLimit // 调整
 		}
 	}
 
 	//init smart contract info
+	//
+	// todo 初始化智能合约 上下文
 	sc := smartcontract.SmartContract{
 		Config:       config,
 		CacheDB:      cache,
 		Store:        store,
 		GasTable:     gasTable,
+
+		// 本次tx的gas - tx.Data消耗的gas
 		Gas:          availableGasLimit - codeLenGasLimit,
 		WasmExecStep: sysconfig.DEFAULT_WASM_MAX_STEPCOUNT,
 		PreExec:      false,
 	}
 
 	//start the smart contract executive function
+	//
+	// todo 启动智能合约执行功能
 	engine, _ := sc.NewExecuteEngine(invoke.Code, tx.TxType)
 
+	/**
+	todo ##################################
+	todo ##################################
+	todo ##################################
+	todo
+	todo 根据执行引擎，执行本次 合约调用
+	 */
 	_, err = engine.Invoke()
 
+	// tx.gas - (tx.Gas - tx.data.gas); todo 这TM 不又是和 codeLenGasLimit 一样的值了么， 这tm算来算去不对吧
 	costGasLimit = availableGasLimit - sc.Gas
 	if costGasLimit < neovm.MIN_TRANSACTION_GAS {
 		costGasLimit = neovm.MIN_TRANSACTION_GAS
 	}
 
+	// 本地tx固定消耗gas
 	costGas = costGasLimit * tx.GasPrice
 	if err != nil {
 		if isCharge {
@@ -249,6 +300,8 @@ func (self *StateStore) HandleInvokeTransaction(store store.LedgerStore, overlay
 	notify.Notify = append(notify.Notify, notifies...)
 	notify.GasConsumed = costGas
 	notify.State = event.CONTRACT_STATE_SUCCESS
+
+	// 将本次操作的 k-v commit掉
 	sc.CacheDB.Commit()
 	return nil
 }
@@ -281,9 +334,13 @@ func isBalanceSufficient(payer common.Address, cache *storage.CacheDB, config *s
 	return balance, nil
 }
 
+
+// todo 改变Gas
 func chargeCostGas(payer common.Address, gas uint64, config *smartcontract.Config,
 	cache *storage.CacheDB, store store.LedgerStore) ([]*event.NotifyEventInfo, error) {
 
+
+	// payer: 调用的发起者 <生成本地调用的  交易code>
 	params := genNativeTransferCode(payer, utils.GovernanceContractAddress, gas)
 
 	sc := smartcontract.SmartContract{
@@ -293,6 +350,9 @@ func chargeCostGas(payer common.Address, gas uint64, config *smartcontract.Confi
 		Gas:     math.MaxUint64,
 	}
 
+	/**
+	todo 实例化一个 本地调用服务
+	 */
 	service, _ := sc.NewNativeService()
 	_, err := service.NativeCall(utils.OngContractAddress, "transfer", params)
 	if err != nil {
@@ -316,6 +376,8 @@ func refreshGlobalParam(config *smartcontract.Config, cache *storage.CacheDB, st
 	}
 
 	service, _ := sc.NewNativeService()
+
+	// todo 系统调用
 	result, err := service.NativeCall(utils.ParamContractAddress, "getGlobalParam", sink.Bytes())
 	if err != nil {
 		return err

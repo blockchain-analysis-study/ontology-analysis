@@ -50,11 +50,18 @@ func NativeInvoke(service *NeoVmService, engine *vm.Executor) error {
 	if err != nil {
 		return err
 	}
+
+
+	/**
+	todo 调用本地合约
+	 */
 	sink := new(common.ZeroCopySink)
 	if err := args.BuildParamToNative(sink); err != nil {
 		return err
 	}
 
+	// Invoke(0, CROSS_CHAIN_CONTRACT_ADDRESS, "createCrossChainTx", param) 格式的入口
+	// todo 启动合约上下文
 	contract := states.ContractInvokeParam{
 		Version: byte(version),
 		Address: addr,

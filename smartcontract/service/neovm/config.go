@@ -23,6 +23,9 @@ import (
 	"sync"
 )
 
+/**
+todo 本体的 gas 定义
+ */
 var (
 	//Gas Limit
 	MIN_TRANSACTION_GAS           uint64 = 20000 // Per transaction base cost.
@@ -30,7 +33,7 @@ var (
 	BLOCKCHAIN_GETBLOCK_GAS       uint64 = 200
 	BLOCKCHAIN_GETTRANSACTION_GAS uint64 = 100
 	BLOCKCHAIN_GETCONTRACT_GAS    uint64 = 100
-	CONTRACT_CREATE_GAS           uint64 = 20000000
+	CONTRACT_CREATE_GAS           uint64 = 20000000 // 创建合约消耗的gas
 	CONTRACT_MIGRATE_GAS          uint64 = 20000000
 	UINT_DEPLOY_CODE_LEN_GAS      uint64 = 200000
 	UINT_INVOKE_CODE_LEN_GAS      uint64 = 20000
@@ -48,6 +51,8 @@ var (
 	SHA256_GAS                    uint64 = 10
 	HASH160_GAS                   uint64 = 20
 	HASH256_GAS                   uint64 = 20
+
+	// todo 指令码的 gas 固定为 1
 	OPCODE_GAS                    uint64 = 1
 
 	PER_UNIT_CODE_LEN    int = 1024
@@ -122,9 +127,11 @@ var (
 	SHA256_NAME               = "SHA256"
 	HASH160_NAME              = "HASH160"
 	HASH256_NAME              = "HASH256"
-	UINT_DEPLOY_CODE_LEN_NAME = "Deploy.Code.Gas"
-	UINT_INVOKE_CODE_LEN_NAME = "Invoke.Code.Gas"
+	UINT_DEPLOY_CODE_LEN_NAME = "Deploy.Code.Gas" // todo 部署合约gas单价
+	UINT_INVOKE_CODE_LEN_NAME = "Invoke.Code.Gas" // todo 调用合约gas单价
 
+
+	// todo 初始化全局的 gas表
 	GAS_TABLE = initGAS_TABLE()
 
 	GAS_TABLE_KEYS = []string{
@@ -155,6 +162,7 @@ var (
 		BLOCKCHAIN_GETBLOCK_NAME:       BLOCKCHAIN_GETBLOCK_GAS,
 		BLOCKCHAIN_GETTRANSACTION_NAME: BLOCKCHAIN_GETTRANSACTION_GAS,
 		BLOCKCHAIN_GETCONTRACT_NAME:    BLOCKCHAIN_GETCONTRACT_GAS,
+		//
 		CONTRACT_CREATE_NAME:           CONTRACT_CREATE_GAS,
 		CONTRACT_MIGRATE_NAME:          CONTRACT_MIGRATE_GAS,
 		STORAGE_GET_NAME:               STORAGE_GET_GAS,
@@ -174,6 +182,10 @@ var (
 	}
 )
 
+
+/**
+todo 初始化 gas计价表
+ */
 func initGAS_TABLE() *sync.Map {
 	m := sync.Map{}
 	m.Store(BLOCKCHAIN_GETHEADER_NAME, BLOCKCHAIN_GETHEADER_GAS)

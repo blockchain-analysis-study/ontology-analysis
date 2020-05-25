@@ -38,6 +38,7 @@ var (
 	COMMIT_DPOS_BYTES = InitBytes(utils.GovernanceContractAddress, governance.COMMIT_DPOS)
 )
 
+// todo 初始化各种系统级别的东西
 func init() {
 	ong.InitOng()
 	ont.InitOnt()

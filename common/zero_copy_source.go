@@ -268,4 +268,6 @@ func getVarUintSize(value uint64) uint64 {
 }
 
 // NewReader returns a new ZeroCopySource reading from b.
+//
+// NewReader从b返回一个新的ZeroCopySource读数。
 func NewZeroCopySource(b []byte) *ZeroCopySource { return &ZeroCopySource{b, 0} }

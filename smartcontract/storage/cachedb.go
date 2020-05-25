@@ -84,6 +84,11 @@ func (self *CacheDB) put(prefix common.DataEntryPrefix, key []byte, value []byte
 }
 
 func (self *CacheDB) GetContract(addr comm.Address) (*payload.DeployCode, error) {
+
+	// todo 根据 prefix +  contractAddr 拉取对应的 contractCode
+	//
+	// todo 本体存储到db中的code其实存了很多东西
+	// 		codeLen|Code|vmFlags|contractName|contractVersion|Author|Email|Description
 	value, err := self.get(common.ST_CONTRACT, addr[:])
 	if err != nil {
 		return nil, err
@@ -94,12 +99,14 @@ func (self *CacheDB) GetContract(addr comm.Address) (*payload.DeployCode, error)
 	}
 
 	contract := new(payload.DeployCode)
+	// todo 组装 DeployCode <这个东西包含了 contract.Code> 还有一些多余的字段，什么 email啊 author啊等等
 	if err := contract.Deserialization(comm.NewZeroCopySource(value)); err != nil {
 		return nil, err
 	}
 	return contract, nil
 }
 
+// todo 将合约存储起来
 func (self *CacheDB) PutContract(contract *payload.DeployCode) {
 	address := contract.Address()
 

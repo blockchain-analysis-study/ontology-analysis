@@ -37,12 +37,16 @@ func (this *WasmContractParam) Serialization(sink *common.ZeroCopySink) {
 // `ContractInvokeParam.Args` has reference of `source`
 func (this *WasmContractParam) Deserialization(source *common.ZeroCopySource) error {
 	var irregular, eof bool
+
+	// 根据 tx.Data 中拿到对应的合约 Address
 	this.Address, eof = source.NextAddress()
 
+	// todo 拿到对应的调用参数, 最终会被引用到 wagin-wm.Host 上面
 	this.Args, _, irregular, eof = source.NextVarBytes()
 	if irregular {
 		return common.ErrIrregularData
 	}
+
 	if eof {
 		return io.ErrUnexpectedEOF
 	}

@@ -182,6 +182,8 @@ const (
 )
 
 // MemDB is an in-memdb key/value database.
+//
+// todo  MemDB是 本体自己实现的内存中的键/值数据库。
 type MemDB struct {
 	cmp comparer.BasicComparer
 	rnd *rand.Rand
